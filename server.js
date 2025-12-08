@@ -96,6 +96,80 @@ app.delete("/api/devices/:id", async (req, res) => {
     }
 });
 
+// ASSIGNMENTS
+app.get("/api/assignments", async (req, res) => {
+    try {
+        const assignments = await Assignment.findAll({ include: [Device, User] });
+        res.json(assignments);
+    } catch (error) {
+        console.error("Error fetching assignments:", error);
+        res.status(500).json({ error: "Failed to fetch assignments" });
+    }
+});
+
+app.get("/api/assignments/:id", async (req, res) => {
+    try {
+        const assignment = await Assignment.findByPk(req.params.id, { include: [Device, User] });
+        if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+        res.json(assignment);
+    } catch (error) {
+        console.error("Error fetching assignment:", error);
+        res.status(500).json({ error: "Failed to fetch assignment" });
+    }
+});
+
+app.post("/api/assignments", async (req, res) => {
+    try {
+        const { deviceId, userId, assignedAt, returnedAt } = req.body;
+
+        const newAssignment = await Assignment.create({
+            deviceId,
+            userId,
+            assignedAt,
+            returnedAt
+        });
+
+        res.status(201).json(newAssignment);
+    } catch (error) {
+        console.error("Error creating assignment:", error);
+        res.status(500).json({ error: "Failed to create assignment" });
+    }
+});
+
+app.put("/api/assignments/:id", async (req, res) => {
+    try {
+        const { deviceId, userId, assignedAt, returnedAt } = req.body;
+
+        const [updatedRowsCount] = await Assignment.update(
+            { deviceId, userId, assignedAt, returnedAt },
+            { where: { id: req.params.id } }
+        );
+
+        if (updatedRowsCount === 0) return res.status(404).json({ error: "Assignment not found" });
+
+        const updatedAssignment = await Assignment.findByPk(req.params.id);
+        res.json(updatedAssignment);
+    } catch (error) {
+        console.error("Error updating assignment:", error);
+        res.status(500).json({ error: "Failed to update assignment" });
+    }
+});
+
+app.delete("/api/assignments/:id", async (req, res) => {
+    try {
+        const deletedRowsCount = await Assignment.destroy({
+            where: { id: req.params.id }
+        });
+
+        if (deletedRowsCount === 0) return res.status(404).json({ error: "Assignment not found" });
+
+        res.json({ message: "Assignment deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting assignment:", error);
+        res.status(500).json({ error: "Failed to delete assignment" });
+    }
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
