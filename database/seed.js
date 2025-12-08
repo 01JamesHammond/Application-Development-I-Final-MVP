@@ -1,8 +1,7 @@
-const { sequelize, Device, User, Assignment } = require('./setup');
+const { db, Device, User, Assignment } = require('./setup');
 
 async function seedDatabase() {
   try {
-    await sequelize.sync(); // ensure tables exist
 
     const users = await User.bulkCreate([
       { name: 'Alice Johnson', email: 'alice.johnson@example.com', department: 'Engineering', role: 'Engineer' },
@@ -25,7 +24,7 @@ async function seedDatabase() {
   } catch (err) {
     console.error('Error seeding database:', err);
   } finally {
-    await sequelize.close();
+    await db.close();
   }
 }
 

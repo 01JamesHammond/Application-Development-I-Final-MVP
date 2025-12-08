@@ -18,5 +18,11 @@
   "bugs": {
     "url": "https://github.com/01JamesHammond/Application-Development-I-Final-MVP/issues"
   },
-  "homepage": "https://github.com/01JamesHammond/Application-Development-I-Final-MVP#readme"
+  "homepage": "https://github.com/01JamesHammond/Application-Development-I-Final-MVP#readme",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7"
+  }
 }

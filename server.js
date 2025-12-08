@@ -41,7 +41,6 @@ app.get("/api/devices", async (req, res) => {
         const devices = await Device.findAll();
         res.json(devices);
     } catch (error) {
-        console.error("Error fetching devices:", error);
         res.status(500).json({ error: "Failed to fetch devices" });
     }
 });
@@ -52,7 +51,6 @@ app.get("/api/devices/:id", async (req, res) => {
         if (!device) return res.status(404).json({ error: "Device not found" });
         res.json(device);
     } catch (error) {
-        console.error("Error fetching device:", error);
         res.status(500).json({ error: "Failed to fetch device" });
     }
 });
@@ -73,7 +71,6 @@ app.post("/api/devices", async (req, res) => {
 
         res.status(201).json(newDevice);
     } catch (error) {
-        console.error("Error creating device:", error);
         res.status(500).json({ error: "Failed to create device" });
     }
 });
@@ -92,7 +89,6 @@ app.put("/api/devices/:id", async (req, res) => {
         const updatedDevice = await Device.findByPk(req.params.id);
         res.json(updatedDevice);
     } catch (error) {
-        console.error("Error updating device:", error);
         res.status(500).json({ error: "Failed to update device" });
     }
 });
@@ -107,7 +103,6 @@ app.delete("/api/devices/:id", async (req, res) => {
 
         res.json({ message: "Device deleted successfully" });
     } catch (error) {
-        console.error("Error deleting device:", error);
         res.status(500).json({ error: "Failed to delete device" });
     }
 });
@@ -118,7 +113,6 @@ app.get("/api/assignments", async (req, res) => {
         const assignments = await Assignment.findAll({ include: [Device, User] });
         res.json(assignments);
     } catch (error) {
-        console.error("Error fetching assignments:", error);
         res.status(500).json({ error: "Failed to fetch assignments" });
     }
 });
@@ -129,7 +123,6 @@ app.get("/api/assignments/:id", async (req, res) => {
         if (!assignment) return res.status(404).json({ error: "Assignment not found" });
         res.json(assignment);
     } catch (error) {
-        console.error("Error fetching assignment:", error);
         res.status(500).json({ error: "Failed to fetch assignment" });
     }
 });
@@ -147,7 +140,6 @@ app.post("/api/assignments", async (req, res) => {
 
         res.status(201).json(newAssignment);
     } catch (error) {
-        console.error("Error creating assignment:", error);
         res.status(500).json({ error: "Failed to create assignment" });
     }
 });
@@ -166,7 +158,6 @@ app.put("/api/assignments/:id", async (req, res) => {
         const updatedAssignment = await Assignment.findByPk(req.params.id);
         res.json(updatedAssignment);
     } catch (error) {
-        console.error("Error updating assignment:", error);
         res.status(500).json({ error: "Failed to update assignment" });
     }
 });
@@ -181,7 +172,6 @@ app.delete("/api/assignments/:id", async (req, res) => {
 
         res.json({ message: "Assignment deleted successfully" });
     } catch (error) {
-        console.error("Error deleting assignment:", error);
         res.status(500).json({ error: "Failed to delete assignment" });
     }
 });
@@ -192,7 +182,6 @@ app.get("/api/users", async (req, res) => {
         const users = await User.findAll();
         res.json(users);
     } catch (error) {
-        console.error("Error fetching users:", error);
         res.status(500).json({ error: "Failed to fetch users" });
     }
 });
@@ -203,7 +192,6 @@ app.get("/api/users/:id", async (req, res) => {
         if (!user) return res.status(404).json({ error: "User not found" });
         res.json(user);
     } catch (error) {
-        console.error("Error fetching user:", error);
         res.status(500).json({ error: "Failed to fetch user" });
     }
 });
@@ -221,7 +209,6 @@ app.post("/api/users", async (req, res) => {
 
         res.status(201).json(newUser);
     } catch (error) {
-        console.error("Error creating user:", error);
         res.status(500).json({ error: "Failed to create user" });
     }
 });
@@ -240,7 +227,6 @@ app.put("/api/users/:id", async (req, res) => {
         const updatedUser = await User.findByPk(req.params.id);
         res.json(updatedUser);
     } catch (error) {
-        console.error("Error updating user:", error);
         res.status(500).json({ error: "Failed to update user" });
     }
 });
@@ -255,7 +241,6 @@ app.delete("/api/users/:id", async (req, res) => {
 
         res.json({ message: "User deleted successfully" });
     } catch (error) {
-        console.error("Error deleting user:", error);
         res.status(500).json({ error: "Failed to delete user" });
     }
 });
