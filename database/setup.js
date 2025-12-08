@@ -1,82 +1,106 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+// database/setup.js
+const { Sequelize, DataTypes } = require("sequelize");
+require("dotenv").config();
 
-const dbDir = path.join(__dirname, '..');
-if (!fs.existsSync(path.join(dbDir, 'inventory.db'))) {
-  // ensure database directory exists (database/ already exists by structure)
-  // file will be created when connecting
+// Create Sequelize instance
+const db = new Sequelize({
+    dialect: "sqlite",
+    storage: `database/${process.env.DB_NAME}`,
+    logging: console.log
+});
+
+// Define Device model
+const Device = db.define("Device", {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    name: {
+        type: DataTypes.STRING
+    },
+    type: {
+        type: DataTypes.STRING
+    },
+    serialNumber: {
+        type: DataTypes.STRING,
+        unique: true
+    },
+    status: {
+        type: DataTypes.STRING
+    },
+    location: {
+        type: DataTypes.STRING
+    },
+    purchaseDate: {
+        type: DataTypes.STRING
+    },
+    notes: {
+        type: DataTypes.STRING
+    }
+});
+
+// Define User model
+const User = db.define("User", {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    name: {
+        type: DataTypes.STRING
+    },
+    email: {
+        type: DataTypes.STRING,
+        unique: true
+    },
+    department: {
+        type: DataTypes.STRING
+    },
+    role: {
+        type: DataTypes.STRING
+    }
+});
+
+// Define Assignment model
+const Assignment = db.define("Assignment", {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    assignedAt: {
+        type: DataTypes.STRING
+    },
+    returnedAt: {
+        type: DataTypes.STRING
+    }
+});
+
+// Define relationships
+Device.hasMany(Assignment, { foreignKey: "deviceId" });
+Assignment.belongsTo(Device, { foreignKey: "deviceId" });
+
+User.hasMany(Assignment, { foreignKey: "userId" });
+Assignment.belongsTo(User, { foreignKey: "userId" });
+
+// Async function to initialize database
+async function setupDatabase() {
+    try {
+        await db.authenticate();
+        console.log("Connection to database established successfully.");
+
+        // force: true drops tables if they exist; use false if you want to preserve data
+        await db.sync({ force: true });
+        console.log(`Database file created at: database/${process.env.DB_NAME}`);
+    } catch (error) {
+        console.error("Unable to connect to the database:", error);
+    }
 }
 
-const dbPath = path.join(dbDir, 'inventory.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Failed to connect to SQLite database:', err.message);
-    process.exit(1);
-  }
-  console.log('Connected to SQLite database at', dbPath);
-});
+// Run only when file is executed directly
+if (require.main === module) {
+    setupDatabase();
+}
 
-// Use the exact table definitions you provided
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE devices (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      type TEXT,
-      serialNumber TEXT UNIQUE,
-      status TEXT,
-      location TEXT,
-      purchaseDate TEXT,
-      notes TEXT
-    )
-  `, (err) => {
-    if (err) {
-      console.error('Error creating devices table:', err.message);
-    } else {
-      console.log('Devices table created');
-    }
-  });
-
-  db.run(`
-    CREATE TABLE users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      email TEXT UNIQUE,
-      department TEXT,
-      role TEXT
-    )
-  `, (err) => {
-    if (err) {
-      console.error('Error creating users table:', err.message);
-    } else {
-      console.log('Users table created');
-    }
-  });
-
-  db.run(`
-    CREATE TABLE assignments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      deviceId INTEGER,
-      userId INTEGER,
-      assignedAt TEXT,
-      returnedAt TEXT,
-      FOREIGN KEY (deviceId) REFERENCES devices(id),
-      FOREIGN KEY (userId) REFERENCES users(id)
-    )
-  `, (err) => {
-    if (err) {
-      console.error('Error creating assignments table:', err.message);
-    } else {
-      console.log('Assignments table created');
-    }
-  });
-});
-
-db.close((err) => {
-  if (err) {
-    console.error('Error closing database:', err.message);
-  } else {
-    console.log('Database connection closed');
-  }
-});
+module.exports = { db, Device, User, Assignment };
