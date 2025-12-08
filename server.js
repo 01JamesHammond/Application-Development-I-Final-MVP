@@ -7,6 +7,22 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(express.json());
 
+// Custom logging middleware
+const requestLogger = (req, res, next) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] ${req.method} ${req.originalUrl}`);
+
+    // Log request body for POST and PUT requests
+    if (req.method === 'POST' || req.method === 'PUT') {
+        console.log('Request Body:', JSON.stringify(req.body, null, 2));
+    }
+
+    next(); // Pass control to next middleware
+};
+
+app.use(requestLogger);
+
+
 // Test database connection
 async function testConnection() {
     try {
@@ -189,6 +205,58 @@ app.get("/api/users/:id", async (req, res) => {
     } catch (error) {
         console.error("Error fetching user:", error);
         res.status(500).json({ error: "Failed to fetch user" });
+    }
+});
+
+app.post("/api/users", async (req, res) => {
+    try {
+        const { name, email, department, role } = req.body;
+
+        const newUser = await User.create({
+            name,
+            email,
+            department,
+            role
+        });
+
+        res.status(201).json(newUser);
+    } catch (error) {
+        console.error("Error creating user:", error);
+        res.status(500).json({ error: "Failed to create user" });
+    }
+});
+
+app.put("/api/users/:id", async (req, res) => {
+    try {
+        const { name, email, department, role } = req.body;
+
+        const [updatedRowsCount] = await User.update(
+            { name, email, department, role },
+            { where: { id: req.params.id } }
+        );
+
+        if (updatedRowsCount === 0) return res.status(404).json({ error: "User not found" });
+
+        const updatedUser = await User.findByPk(req.params.id);
+        res.json(updatedUser);
+    } catch (error) {
+        console.error("Error updating user:", error);
+        res.status(500).json({ error: "Failed to update user" });
+    }
+});
+
+app.delete("/api/users/:id", async (req, res) => {
+    try {
+        const deletedRowsCount = await User.destroy({
+            where: { id: req.params.id }
+        });
+
+        if (deletedRowsCount === 0) return res.status(404).json({ error: "User not found" });
+
+        res.json({ message: "User deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting user:", error);
+        res.status(500).json({ error: "Failed to delete user" });
     }
 });
 
