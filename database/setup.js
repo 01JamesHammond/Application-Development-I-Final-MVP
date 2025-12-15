@@ -54,6 +54,10 @@ const User = db.define("User", {
         type: DataTypes.STRING,
         unique: true
     },
+    password: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
     department: {
         type: DataTypes.STRING
     },

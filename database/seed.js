@@ -1,12 +1,18 @@
+const bcrypt = require("bcryptjs");
 const { db, Device, User, Assignment } = require('./setup');
+
+
+
 
 async function seedDatabase() {
   try {
 
+    const hashedPassword = await bcrypt.hash("password123", 10);
+
     const users = await User.bulkCreate([
-      { name: 'Alice Johnson', email: 'alice.johnson@example.com', department: 'Engineering', role: 'Engineer' },
-      { name: 'Bob Martinez', email: 'bob.martinez@example.com', department: 'IT', role: 'Technician' },
-      { name: 'Carol Lee', email: 'carol.lee@example.com', department: 'Administration', role: 'Manager' },
+      { name: 'Alice Johnson', email: 'alice.johnson@example.com', password: hashedPassword, department: 'Engineering', role: 'Engineer' },
+      { name: 'Bob Martinez', email: 'bob.martinez@example.com', password: hashedPassword, department: 'IT', role: 'Technician' },
+      { name: 'Carol Lee', email: 'carol.lee@example.com', password: hashedPassword, department: 'Administration', role: 'Manager' },
     ]);
 
     const devices = await Device.bulkCreate([

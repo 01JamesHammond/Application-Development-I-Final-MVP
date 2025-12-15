@@ -1,5 +1,8 @@
 const express = require("express");
 const { db, Device, User, Assignment } = require("./database/setup.js");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,6 +25,62 @@ const requestLogger = (req, res, next) => {
 
 app.use(requestLogger);
 
+// JWT AUTH MIDDLEWARE
+function requireAuth(req, res, next) {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const token = authHeader.substring(7);
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        req.user = {
+            id: decoded.id,
+            email: decoded.email,
+            role: decoded.role
+        };
+
+        next();
+    } catch (error) {
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({ error: "Token expired" });
+        } else if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({ error: "Invalid token" });
+        } else {
+            return res.status(401).json({ error: "Token verification failed" });
+        }
+    }
+}
+
+function requireManager(req, res, next) {
+    if (!req.user) {
+        return res.status(401).json({ error: "Authentication required" });
+    }
+
+    if (req.user.role === "manager" || req.user.role === "admin") {
+        return next();
+    }
+
+    return res.status(403).json({ error: "Forbidden: manager or admin required" });
+}
+
+function requireAdmin(req, res, next) {
+    if (!req.user) {
+        return res.status(401).json({ error: "Authentication required" });
+    }
+
+    if (req.user.role === "admin") {
+        return next();
+    }
+
+    return res.status(403).json({ error: "Forbidden: admin required" });
+}
+
+
 
 // Test database connection
 async function testConnection() {
@@ -35,8 +94,79 @@ async function testConnection() {
 
 testConnection();
 
+
+app.post("/api/register", async (req, res) => {
+    try {
+        const { name, email, password, department, role } = req.body;
+
+        const existingUser = await User.findOne({ where: { email } });
+        if (existingUser) {
+            return res.status(400).json({ error: "User already exists" });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = await User.create({
+            name,
+            email,
+            password: hashedPassword,
+            department,
+            role
+        });
+
+        const token = jwt.sign(
+            {
+                id: newUser.id,
+                email: newUser.email,
+                role: newUser.role
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN }
+        );
+
+        res.status(201).json({ token });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to register user" });
+    }
+});
+
+app.post("/api/login", async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        const user = await User.findOne({ where: { email } });
+        if (!user) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        const valid = await bcrypt.compare(password, user.password);
+        if (!valid) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        const token = jwt.sign(
+            {
+                id: user.id,
+                email: user.email,
+                role: user.role
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN }
+        );
+
+        res.json({ token });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to login" });
+    }
+});
+
+app.post("/api/logout", requireAuth, (req, res) => {
+    res.json({ message: "Logout successful" });
+});
+
+
 // DEVICES
-app.get("/api/devices", async (req, res) => {
+app.get("/api/devices", requireAuth, async (req, res) => {
     try {
         const devices = await Device.findAll();
         res.json(devices);
@@ -45,7 +175,7 @@ app.get("/api/devices", async (req, res) => {
     }
 });
 
-app.get("/api/devices/:id", async (req, res) => {
+app.get("/api/devices/:id", requireAuth, async (req, res) => {
     try {
         const device = await Device.findByPk(req.params.id);
         if (!device) return res.status(404).json({ error: "Device not found" });
@@ -55,7 +185,7 @@ app.get("/api/devices/:id", async (req, res) => {
     }
 });
 
-app.post("/api/devices", async (req, res) => {
+app.post("/api/devices", requireAuth, requireManager, async (req, res) => {
     try {
         const { name, type, serialNumber, status, location, purchaseDate, notes } = req.body;
 
@@ -75,7 +205,7 @@ app.post("/api/devices", async (req, res) => {
     }
 });
 
-app.put("/api/devices/:id", async (req, res) => {
+app.put("/api/devices/:id", requireAuth, requireManager, async (req, res) => {
     try {
         const { name, type, serialNumber, status, location, purchaseDate, notes } = req.body;
 
@@ -93,7 +223,7 @@ app.put("/api/devices/:id", async (req, res) => {
     }
 });
 
-app.delete("/api/devices/:id", async (req, res) => {
+app.delete("/api/devices/:id", requireAuth, requireAdmin, async (req, res) => {
     try {
         const deletedRowsCount = await Device.destroy({
             where: { id: req.params.id }
@@ -108,7 +238,7 @@ app.delete("/api/devices/:id", async (req, res) => {
 });
 
 // ASSIGNMENTS
-app.get("/api/assignments", async (req, res) => {
+app.get("/api/assignments", requireAuth, async (req, res) => {
     try {
         const assignments = await Assignment.findAll({ include: [Device, User] });
         res.json(assignments);
@@ -117,7 +247,7 @@ app.get("/api/assignments", async (req, res) => {
     }
 });
 
-app.get("/api/assignments/:id", async (req, res) => {
+app.get("/api/assignments/:id", requireAuth, async (req, res) => {
     try {
         const assignment = await Assignment.findByPk(req.params.id, { include: [Device, User] });
         if (!assignment) return res.status(404).json({ error: "Assignment not found" });
@@ -127,7 +257,7 @@ app.get("/api/assignments/:id", async (req, res) => {
     }
 });
 
-app.post("/api/assignments", async (req, res) => {
+app.post("/api/assignments", requireAuth, requireManager, async (req, res) => {
     try {
         const { deviceId, userId, assignedAt, returnedAt } = req.body;
 
@@ -144,7 +274,7 @@ app.post("/api/assignments", async (req, res) => {
     }
 });
 
-app.put("/api/assignments/:id", async (req, res) => {
+app.put("/api/assignments/:id", requireAuth, requireManager, async (req, res) => {
     try {
         const { deviceId, userId, assignedAt, returnedAt } = req.body;
 
@@ -162,7 +292,7 @@ app.put("/api/assignments/:id", async (req, res) => {
     }
 });
 
-app.delete("/api/assignments/:id", async (req, res) => {
+app.delete("/api/assignments/:id", requireAuth, requireAdmin, async (req, res) => {
     try {
         const deletedRowsCount = await Assignment.destroy({
             where: { id: req.params.id }
@@ -177,7 +307,24 @@ app.delete("/api/assignments/:id", async (req, res) => {
 });
 
 // USERS
-app.get("/api/users", async (req, res) => {
+
+app.get("/api/users/profile", requireAuth, async (req, res) => {
+    try {
+        const user = await User.findByPk(req.user.id, {
+            attributes: ["id", "name", "email", "department", "role"]
+        });
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch user profile" });
+    }
+});
+
+app.get("/api/users", requireAuth, requireAdmin, async (req, res) => {
     try {
         const users = await User.findAll();
         res.json(users);
@@ -186,115 +333,6 @@ app.get("/api/users", async (req, res) => {
     }
 });
 
-app.get("/api/users/:id", async (req, res) => {
-    try {
-        const user = await User.findByPk(req.params.id);
-        if (!user) return res.status(404).json({ error: "User not found" });
-        res.json(user);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to fetch user" });
-    }
-});
-
-app.post("/api/users", async (req, res) => {
-    try {
-        const { name, email, department, role } = req.body;
-
-        const newUser = await User.create({
-            name,
-            email,
-            department,
-            role
-        });
-
-        res.status(201).json(newUser);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to create user" });
-    }
-});
-
-app.put("/api/users/:id", async (req, res) => {
-    try {
-        const { name, email, department, role } = req.body;
-
-        const [updatedRowsCount] = await User.update(
-            { name, email, department, role },
-            { where: { id: req.params.id } }
-        );
-
-        if (updatedRowsCount === 0) return res.status(404).json({ error: "User not found" });
-
-        const updatedUser = await User.findByPk(req.params.id);
-        res.json(updatedUser);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to update user" });
-    }
-});
-
-app.delete("/api/users/:id", async (req, res) => {
-    try {
-        const deletedRowsCount = await User.destroy({
-            where: { id: req.params.id }
-        });
-
-        if (deletedRowsCount === 0) return res.status(404).json({ error: "User not found" });
-
-        res.json({ message: "User deleted successfully" });
-    } catch (error) {
-        res.status(500).json({ error: "Failed to delete user" });
-    }
-});
-app.get("/search", async (req, res) => {
-    try {
-        const { table, column, type, query } = req.query;
-
-        if (!table || !column || !type || !query) {
-            return res.status(400).json({ error: "Missing required query parameters" });
-        }
-
-        const models = { users: User, devices: Device, assignments: Assignment };
-        const model = models[table];
-
-        if (!model) {
-            return res.status(400).json({ error: "Invalid table name" });
-        }
-
-        const attributes = Object.keys(model.getAttributes());
-        if (!attributes.includes(column)) {
-            return res.status(400).json({ error: "Invalid column for selected table" });
-        }
-
-        let whereClause = {};
-        let operatorValue;
-
-        switch (type) {
-            case "exact":
-                operatorValue = query;
-                break;
-            case "contains":
-                operatorValue = { [require("sequelize").Op.like]: `%${query}%` };
-                break;
-            case "starts":
-                operatorValue = { [require("sequelize").Op.like]: `${query}%` };
-                break;
-            case "ends":
-                operatorValue = { [require("sequelize").Op.like]: `%${query}` };
-                break;
-            default:
-                return res.status(400).json({ error: "Invalid search type" });
-        }
-
-        whereClause[column] = operatorValue;
-
-        const results = await model.findAll({ where: whereClause });
-
-        res.json(results);
-
-    } catch (err) {
-        console.error("Search error:", err);
-        res.status(500).json({ error: "Search failed" });
-    }
-});
 
 
 // Start server
