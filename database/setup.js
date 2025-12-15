@@ -69,13 +69,32 @@ const Assignment = db.define("Assignment", {
         primaryKey: true,
         autoIncrement: true
     },
+    deviceId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: Device,
+            key: "id"
+        }
+    },
+    userId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: User,
+            key: "id"
+        }
+    },
     assignedAt: {
-        type: DataTypes.STRING
+        type: DataTypes.DATE,
+        allowNull: false
     },
     returnedAt: {
-        type: DataTypes.STRING
+        type: DataTypes.DATE,
+        allowNull: true
     }
 });
+
 
 // Define relationships
 Device.hasMany(Assignment, { foreignKey: "deviceId" });

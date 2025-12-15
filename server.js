@@ -244,6 +244,57 @@ app.delete("/api/users/:id", async (req, res) => {
         res.status(500).json({ error: "Failed to delete user" });
     }
 });
+app.get("/search", async (req, res) => {
+    try {
+        const { table, column, type, query } = req.query;
+
+        if (!table || !column || !type || !query) {
+            return res.status(400).json({ error: "Missing required query parameters" });
+        }
+
+        const models = { users: User, devices: Device, assignments: Assignment };
+        const model = models[table];
+
+        if (!model) {
+            return res.status(400).json({ error: "Invalid table name" });
+        }
+
+        const attributes = Object.keys(model.getAttributes());
+        if (!attributes.includes(column)) {
+            return res.status(400).json({ error: "Invalid column for selected table" });
+        }
+
+        let whereClause = {};
+        let operatorValue;
+
+        switch (type) {
+            case "exact":
+                operatorValue = query;
+                break;
+            case "contains":
+                operatorValue = { [require("sequelize").Op.like]: `%${query}%` };
+                break;
+            case "starts":
+                operatorValue = { [require("sequelize").Op.like]: `${query}%` };
+                break;
+            case "ends":
+                operatorValue = { [require("sequelize").Op.like]: `%${query}` };
+                break;
+            default:
+                return res.status(400).json({ error: "Invalid search type" });
+        }
+
+        whereClause[column] = operatorValue;
+
+        const results = await model.findAll({ where: whereClause });
+
+        res.json(results);
+
+    } catch (err) {
+        console.error("Search error:", err);
+        res.status(500).json({ error: "Search failed" });
+    }
+});
 
 
 // Start server
